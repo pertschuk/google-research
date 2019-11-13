@@ -35,6 +35,8 @@ from tensorflow.contrib import cluster_resolver as contrib_cluster_resolver
 from tensorflow.contrib import data as contrib_data
 from tensorflow.contrib import tpu as contrib_tpu
 
+import time
+
 flags = tf.flags
 
 FLAGS = flags.FLAGS
@@ -947,7 +949,9 @@ def main(_):
         is_training=False,
         drop_remainder=eval_drop_remainder)
 
+    start = time.time()
     result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
+    tf.logging.info("Average rate: %s" % (len(eval_examples)/ (time.time() - start)))
 
     output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
     with tf.gfile.GFile(output_eval_file, "w") as writer:
