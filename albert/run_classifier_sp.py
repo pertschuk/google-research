@@ -951,7 +951,7 @@ def main(_):
 
     start = time.time()
     result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
-    tf.logging.info("Average rate: %s" % (len(eval_examples)/ (time.time() - start)))
+    print("Average rate: %s" % (len(eval_examples)/ (time.time() - start)))
 
     output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
     with tf.gfile.GFile(output_eval_file, "w") as writer:
