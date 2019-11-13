@@ -258,14 +258,15 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   vocab_words = list(tokenizer.vocab.keys())
   instances = []
   i = 0
+  total = len(all_documents)
   for _ in range(dupe_factor):
     for document_index in range(len(all_documents)):
       instances.extend(
           create_instances_from_document(
               all_documents, document_index, max_seq_length, short_seq_prob,
               masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
-    i += 1
-    if i % 100 == 0: print("On sample %s" % i)
+      i += 1
+      print("On doc %s out of %s" % (i, total))
 
   rng.shuffle(instances)
   return instances
@@ -301,7 +302,6 @@ def create_instances_from_document(
   current_length = 0
   i = 0
   while i < len(document):
-    print(i)
     segment = document[i]
     current_chunk.append(segment)
     current_length += len(segment)
