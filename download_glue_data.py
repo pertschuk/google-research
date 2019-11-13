@@ -53,6 +53,7 @@ def download_and_extract(task, data_dir):
     print("\tCompleted!")
 
 def format_mrpc(data_dir, path_to_data):
+    return
     print("Processing MRPC...")
     mrpc_dir = os.path.join(data_dir, "MRPC")
     if not os.path.isdir(mrpc_dir):
