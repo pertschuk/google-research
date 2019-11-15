@@ -13,12 +13,34 @@ spec:
     spec:
       containers:
       - name: c
-        image:
-        command: ["python3", "create_pretraining_data.py",
+        image: gcr.io/blueface/preprocess
+        env:
+          - name: DATA_DIR
+            value: gs://koursaros/data/subset/
+          - name: PROCESSED_DATA
+            value: gs://koursaros/processed_data
+          - name: MODEL_DIR
+            value: tiny
+          - name: "GOOGLE_APPLICATION_CREDENTIALS"
+            value: "/var/run/secret/cloud.google.com/service-account.json"
+        command: ["wget",
+                  "https://storage.googleapis.com/koursaros/tiny/vocab/30k-clean.vocab",
+                  "&&",
+                  "wget",
+                  "https://storage.googleapis.com/koursaros/tiny/vocab/30k-clean.model",
+                  "&&",
+                  "python3", "create_pretraining_data.py",
                   "--input_file=${DATA_DIR}/wiki_*$ITEM.txt.doc.train/",
                   "--output_file=${PROCESSED_DATA}/wiki_$ITEM.tf_record",
-                  "--spm_model_file=${MODEL_DIR}/vocab/30k-clean.model",
+                  "--spm_model_file=30k-clean.model",
                   "--meta_data_file_path=${PROCESSED_DATA}/train_meta_data",
-                  "--vocab_file ${MODEL_DIR}/vocab/30k-clean.vocab"]
+                  "--vocab_file=30k-clean.vocab"]
+        volumeMounts:
+          - name: "service-account"
+            mountPath: "/var/run/secret/cloud.google.com"
+          volumes:
+            - name: "service-account"
+              secret:
+                secretName: "my-app-sa-key"
       restartPolicy: Never
 
