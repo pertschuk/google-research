@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: process-item-$ITEM
+  labels:
+    jobgroup: pretrain
+spec:
+  template:
+    metadata:
+      name: pretrain-job
+      labels:
+        jobgroup: pretrain
+    spec:
+      containers:
+      - name: c
+        image: tensorflow/tensorflow:1.15.0-py3
+        command: ["python3", "create_pretraining_data.py",
+                  "--input_file=${DATA_DIR}/wiki_*$ITEM.txt.doc.train/",
+                  "--output_file=${PROCESSED_DATA}/wiki_$ITEM.tf_record",
+                  "--spm_model_file=${MODEL_DIR}/vocab/30k-clean.model",
+                  "--meta_data_file_path=${PROCESSED_DATA}/train_meta_data",
+                  "--vocab_file ${MODEL_DIR}/vocab/30k-clean.vocab"]
+      restartPolicy: Never
+

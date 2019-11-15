@@ -13,7 +13,7 @@ mv ${MODEL_DIR}/assets/ ${MODEL_DIR}/vocab
 # Delete unwanted files
 rm -rf ${MODEL_DIR}/saved_model.pb ${MODEL_DIR}/variables/ ${MODEL_DIR}/saved_model.pb ${MODEL_DIR}/tfhub_module.pb
 
-export DATA_DIR=gs://koursaros/benchmark
+export DATA_DIR=gs://koursaros/data/subset/
 export PROCESSED_DATA=gs://koursaros/processed_data
 export MODEL_DIR=tiny
 python3 create_pretraining_data.py \
