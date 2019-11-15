@@ -25,7 +25,7 @@ spec:
                   "--vocab_file=30k-clean.vocab"]
         resources:
           requests:
-            memory: "4Gi"
+            memory: "3Gi"
         volumeMounts:
           - name: "service-account"
             mountPath: "/var/run/secret/cloud.google.com"
