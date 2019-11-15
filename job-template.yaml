@@ -19,8 +19,6 @@ spec:
             value: gs://koursaros/data/subset/
           - name: PROCESSED_DATA
             value: gs://koursaros/processed_data
-          - name: MODEL_DIR
-            value: tiny
           - name: "GOOGLE_APPLICATION_CREDENTIALS"
             value: "/var/run/secret/cloud.google.com/service-account.json"
         command: ["wget",
@@ -35,6 +33,10 @@ spec:
                   "--spm_model_file=30k-clean.model",
                   "--meta_data_file_path=${PROCESSED_DATA}/train_meta_data",
                   "--vocab_file=30k-clean.vocab"]
+        resources:
+          requests:
+            memory: "2.7Gi"
+            cpu: "1"
         volumeMounts:
           - name: "service-account"
             mountPath: "/var/run/secret/cloud.google.com"
