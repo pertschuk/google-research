@@ -15,17 +15,13 @@ spec:
       - name: c
         image: gcr.io/blueface/preprocess
         env:
-          - name: DATA_DIR
-            value: gs://koursaros/data/subset/
-          - name: PROCESSED_DATA
-            value: gs://koursaros/processed_data
           - name: "GOOGLE_APPLICATION_CREDENTIALS"
             value: "/var/run/secret/cloud.google.com/service-account.json"
         command: ["/usr/bin/python3", "create_pretraining_data.py",
-                  "--input_file=${DATA_DIR}/wiki_*$ITEM.txt.doc.train/",
-                  "--output_file=${PROCESSED_DATA}/wiki_$ITEM.tf_record",
+                  "--input_file=gs://koursaros/data/subset/wiki_*$ITEM.txt.doc.train/",
+                  "--output_file=gs://koursaros/processed_data/wiki_$ITEM.tf_record",
                   "--spm_model_file=30k-clean.model",
-                  "--meta_data_file_path=${PROCESSED_DATA}/train_meta_data",
+                  "--meta_data_file_path=gs://koursaros/processed_data/train_meta_data",
                   "--vocab_file=30k-clean.vocab"]
         resources:
           requests:
