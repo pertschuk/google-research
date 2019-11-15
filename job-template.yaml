@@ -21,7 +21,7 @@ spec:
             value: gs://koursaros/processed_data
           - name: "GOOGLE_APPLICATION_CREDENTIALS"
             value: "/var/run/secret/cloud.google.com/service-account.json"
-        command: ["cat $GOOGLE_APPLICATION_CREDENTIALS", "/usr/bin/python3", "create_pretraining_data.py",
+        command: ["/usr/bin/python3", "create_pretraining_data.py",
                   "--input_file=${DATA_DIR}/wiki_*$ITEM.txt.doc.train/",
                   "--output_file=${PROCESSED_DATA}/wiki_$ITEM.tf_record",
                   "--spm_model_file=30k-clean.model",
