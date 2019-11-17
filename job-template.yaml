@@ -18,7 +18,7 @@ spec:
           - name: "GOOGLE_APPLICATION_CREDENTIALS"
             value: "/var/run/secret/cloud.google.com/service-account.json"
         command: ["/usr/bin/python3", "create_pretraining_data.py",
-                  "--input_file=gs://koursaros/data/subset/wiki_$ITEM.txt.doc.train",
+                  "--input_file=gs://koursaros/enwiki-feb-doc-split/wiki_$ITEM.txt.doc.train",
                   "--output_file=gs://koursaros/processed_data/wiki_$ITEM.tf_record",
                   "--spm_model_file=30k-clean.model",
                   "--meta_data_file_path=gs://koursaros/processed_data/train_meta_data",
