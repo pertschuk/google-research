@@ -392,8 +392,8 @@ class MSMarcoProcessor(DataProcessor):
             hours_remaining))
 
         query, positive_doc, negative_doc = line.rstrip().split('\t')
-        examples.append(self._create_example(query, positive_doc, 1.0, 'train', i))
-        examples.append(self._create_example(query, negative_doc, 0.0, 'train', i + 0.5))
+        examples.append(self._create_example(query, positive_doc, str(1.0), 'train', i))
+        examples.append(self._create_example(query, negative_doc, str(0.0), 'train', i + 0.5))
     return examples
 
   def get_dev_examples(self, data_dir):
@@ -601,79 +601,6 @@ def file_based_convert_examples_to_features(
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     writer.write(tf_example.SerializeToString())
   writer.close()
-
-
-def msmarco_input_fn_builder(dataset_path, seq_length, is_training,
-                             max_eval_examples=None):
-  """Creates an `input_fn` closure to be passed to TPUEstimator."""
-
-  def input_fn(params):
-    """The actual input function."""
-
-    batch_size = params["batch_size"]
-    output_buffer_size = batch_size * 1000
-
-    def extract_fn(data_record):
-      features = {
-        "query_ids": tf.FixedLenSequenceFeature(
-          [], tf.int64, allow_missing=True),
-        "doc_ids": tf.FixedLenSequenceFeature(
-          [], tf.int64, allow_missing=True),
-        "label": tf.FixedLenFeature([], tf.int64),
-      }
-      sample = tf.parse_single_example(data_record, features)
-
-      query_ids = tf.cast(sample["query_ids"], tf.int32)
-      doc_ids = tf.cast(sample["doc_ids"], tf.int32)
-      label_ids = tf.cast(sample["label"], tf.int32)
-      input_ids = tf.concat((query_ids, doc_ids), 0)
-
-      query_segment_id = tf.zeros_like(query_ids)
-      doc_segment_id = tf.ones_like(doc_ids)
-      segment_ids = tf.concat((query_segment_id, doc_segment_id), 0)
-
-      input_mask = tf.ones_like(input_ids)
-
-      features = {
-        "input_ids": input_ids,
-        "segment_ids": segment_ids,
-        "input_mask": input_mask,
-        "label_ids": label_ids,
-      }
-      return features
-
-    dataset = tf.data.TFRecordDataset([dataset_path])
-    dataset = dataset.map(
-      extract_fn, num_parallel_calls=4).prefetch(output_buffer_size)
-
-    if is_training:
-      dataset = dataset.repeat()
-      dataset = dataset.shuffle(buffer_size=1000)
-    else:
-      if max_eval_examples:
-        # Use at most this number of examples (debugging only).
-        dataset = dataset.take(max_eval_examples)
-        # pass
-
-    dataset = dataset.padded_batch(
-      batch_size=batch_size,
-      padded_shapes={
-        "input_ids": [seq_length],
-        "segment_ids": [seq_length],
-        "input_mask": [seq_length],
-        "label_ids": [],
-      },
-      padding_values={
-        "input_ids": 0,
-        "segment_ids": 0,
-        "input_mask": 0,
-        "label_ids": 0,
-      },
-      drop_remainder=True)
-
-    return dataset
-
-  return input_fn
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training,
