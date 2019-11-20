@@ -58,6 +58,14 @@ flags.DEFINE_string(
     "init_checkpoint", None,
     "Initial checkpoint (usually from a pre-trained ALBERT model).")
 
+flags.DEFINE_string(
+    "teacher_config", None,
+    "Albert config file for teacher model")
+
+flags.DEFINE_string(
+    "teacher_checkpoint", None,
+    "Initial checkpoint for teacher model in KD")
+
 flags.DEFINE_integer(
     "max_seq_length", 512,
     "The maximum total input sequence length after WordPiece tokenization. "
@@ -84,7 +92,7 @@ flags.DEFINE_float("learning_rate", 0.00176, "The initial learning rate.")
 
 flags.DEFINE_float("poly_power", 1.0, "The power of poly decay.")
 
-flags.DEFINE_integer("num_train_steps", 125000, "Number of training steps.")
+flags.DEFINE_integer("num_train_steps", 500000, "Number of training steps.")
 
 flags.DEFINE_integer("num_warmup_steps", 3125, "Number of warmup steps.")
 
@@ -133,7 +141,8 @@ flags.DEFINE_float(
     "for offline masking")
 
 
-def model_fn_builder(albert_config, init_checkpoint, learning_rate,
+def model_fn_builder(albert_config, init_checkpoint, teacher_config,
+                     teacher_checkpoint, learning_rate,
                      num_train_steps, num_warmup_steps, use_tpu,
                      use_one_hot_embeddings, optimizer, poly_power,
                      start_warmup_step):
@@ -167,10 +176,26 @@ def model_fn_builder(albert_config, init_checkpoint, learning_rate,
         token_type_ids=segment_ids,
         use_one_hot_embeddings=use_one_hot_embeddings)
 
+    with tf.variable_scope('teacher'):
+      teacher = modeling.AlbertModel(
+          config=teacher_config,
+          is_training=False,
+          input_ids=input_ids,
+          input_mask=input_mask,
+          token_type_ids=segment_ids,
+          use_one_hot_embeddings=use_one_hot_embeddings)
+
     (masked_lm_loss, masked_lm_example_loss,
      masked_lm_log_probs) = get_masked_lm_output(albert_config,
                                                  model.get_sequence_output(),
                                                  model.get_embedding_table(),
+                                                 masked_lm_positions,
+                                                 masked_lm_ids,
+                                                 masked_lm_weights)
+    with tf.variable_scope('teacher'):
+      (_, _, teacher_masked_lm_log_probs) = get_masked_lm_output(teacher_config,
+                                                 teacher.get_sequence_output(),
+                                                 teacher.get_embedding_table(),
                                                  masked_lm_positions,
                                                  masked_lm_ids,
                                                  masked_lm_weights)
@@ -179,7 +204,18 @@ def model_fn_builder(albert_config, init_checkpoint, learning_rate,
      sentence_order_log_probs) = get_sentence_order_output(
          albert_config, model.get_pooled_output(), sentence_order_labels)
 
-    total_loss = masked_lm_loss + sentence_order_loss
+    with tf.variable_scope('teacher'):
+      (_, _, teacher_sentence_order_log_probs) = get_sentence_order_output(
+        albert_config, model.get_pooled_output(), sentence_order_labels)
+
+    masked_lm_distill_loss = tf.reduce_mean(tf.squared_difference(masked_lm_log_probs,
+                                                                  teacher_masked_lm_log_probs))
+    sentence_order_distill_loss = tf.reduce_mean(tf.squared_difference(sentence_order_log_probs,
+                                                                       teacher_sentence_order_log_probs))
+    encoder_layers_distill_loss = tf.reduce_mean(tf.squared_difference(model.get_all_encoder_layers(),
+                                                                       teacher.get_all_encoder_layers()))
+
+    total_loss = masked_lm_distill_loss + sentence_order_distill_loss + encoder_layers_distill_loss
 
     tvars = tf.trainable_variables()
 
@@ -188,7 +224,9 @@ def model_fn_builder(albert_config, init_checkpoint, learning_rate,
     if init_checkpoint:
       tf.logging.info("number of hidden group %d to initialize",
                       albert_config.num_hidden_groups)
+
       num_of_initialize_group = 1
+      num_of_initialize_group_teacher = 1
       if FLAGS.init_from_group0:
         num_of_initialize_group = albert_config.num_hidden_groups
         if albert_config.net_structure_type > 0:
@@ -196,21 +234,34 @@ def model_fn_builder(albert_config, init_checkpoint, learning_rate,
       (assignment_map, initialized_variable_names
       ) = modeling.get_assignment_map_from_checkpoint(
               tvars, init_checkpoint, num_of_initialize_group)
-      if use_tpu:
+      with tf.variable_scope('teacher'):
+        tvars = tf.trainable_variables()
+        (teacher_assignment_map,
+         teacher_initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(
+              tvars, teacher_checkpoint, num_of_initialize_group_teacher)
 
+      if use_tpu:
         def tpu_scaffold():
           for gid in range(num_of_initialize_group):
             tf.logging.info("initialize the %dth layer", gid)
             tf.logging.info(assignment_map[gid])
             tf.train.init_from_checkpoint(init_checkpoint, assignment_map[gid])
+          for gid in range(num_of_initialize_group_teacher):
+            tf.logging.info("initialize the %dth teacher layer", gid)
+            tf.logging.info(assignment_map[gid])
+            tf.train.init_from_checkpoint(teacher_checkpoint, {'bert/': 'teacher/bert'})
           return tf.train.Scaffold()
-
         scaffold_fn = tpu_scaffold
+
       else:
         for gid in range(num_of_initialize_group):
           tf.logging.info("initialize the %dth layer", gid)
           tf.logging.info(assignment_map[gid])
           tf.train.init_from_checkpoint(init_checkpoint, assignment_map[gid])
+        for gid in range(num_of_initialize_group_teacher):
+          tf.logging.info("initialize the %dth teacher layer", gid)
+          tf.logging.info(assignment_map[gid])
+          tf.train.init_from_checkpoint(teacher_checkpoint, teacher_assignment_map[gid])
 
     tf.logging.info("**** Trainable Variables ****")
     for var in tvars:
@@ -478,6 +529,7 @@ def main(_):
     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
   albert_config = modeling.AlbertConfig.from_json_file(FLAGS.albert_config_file)
+  teacher_config = modeling.AlbertConfig.from_json_file(FLAGS.teacher_config)
 
   tf.gfile.MakeDirs(FLAGS.output_dir)
 
@@ -508,6 +560,8 @@ def main(_):
   model_fn = model_fn_builder(
       albert_config=albert_config,
       init_checkpoint=FLAGS.init_checkpoint,
+      teacher_config=teacher_config,
+      teacher_checkpoint=FLAGS.teacher_checkpoint,
       learning_rate=FLAGS.learning_rate,
       num_train_steps=FLAGS.num_train_steps,
       num_warmup_steps=FLAGS.num_warmup_steps,

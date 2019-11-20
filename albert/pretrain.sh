@@ -32,11 +32,37 @@ export MODEL_DIR=${STORAGE_BUCKET}/tiny
 python3 run_pretraining.py \
 --albert_config_file=${MODEL_DIR}/config.json \
 --do_train \
---input_file=${PROCESSED_DATA}/train.tf_record \
+--input_file=${PROCESSED_DATA}/wiki_02*.tf_record \
 --meta_data_file_path=${PROCESSED_DATA}/train_meta_data \
 --output_dir=${PRETRAINED_MODEL} \
 --strategy_type=mirror \
 --train_batch_size=128 \
 --num_train_epochs=3 \
 --use_tpu=True \
---tpu_name=jp954
+--init_checkpoint gs://koursaros/tiny/model.ckpt-265000  \
+--tpu_name=pretrain \
+--num_train_steps 500000
+
+python3 run_classifier_sp.py \
+--do_train \
+--init_checkpoint gs://koursaros/tiny/model.ckpt-125000 \
+--task_name cola \
+--data_dir glue_data/CoLA \
+--maq_seq_len 128 \
+--spm_model_file tiny/vocab/30k-clean.model \
+--vocab_file tiny/vocab/30k-clean.vocab \
+--albert_config_file tiny/config.json \
+--output_dir output \
+--use_tpu \
+--tpu_name pretrain
+
+python3 run_classifier_sp.py \
+--do_train \
+--init_checkpoint gs://koursaros/tiny/model.ckpt-265000  \
+--task_name mnli \
+--data_dir glue_data/MNLI \
+--spm_model_file tiny/vocab/30k-clean.model \
+--vocab_file tiny/vocab/30k-clean.vocab \
+--albert_config_file tiny/config.json \
+--output_dir gs://koursaros/output \
+--use_tpu --tpu_name pretrain --do_eval
