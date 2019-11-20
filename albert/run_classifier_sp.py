@@ -381,7 +381,7 @@ class MSMarcoProcessor(DataProcessor):
 
     with open(train_dataset_path, 'r') as f:
       for i, line in enumerate(f):
-        if i > 10000:
+        if i > 200000:
           break
         if i % 1000 == 0:
           time_passed = int(time.time() - start_time)
