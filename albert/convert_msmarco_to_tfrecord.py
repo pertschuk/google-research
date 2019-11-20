@@ -8,7 +8,7 @@ import re
 import tensorflow as tf
 import time
 # local module
-import tokenization
+from albert import tokenization
 
 
 flags = tf.flags
