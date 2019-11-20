@@ -392,8 +392,8 @@ class MSMarcoProcessor(DataProcessor):
             hours_remaining))
 
         query, positive_doc, negative_doc = line.rstrip().split('\t')
-        examples.append(self._create_example(query, positive_doc, str(1.0), 'train', i))
-        examples.append(self._create_example(query, negative_doc, str(0.0), 'train', i + 0.5))
+        examples.append(self._create_example(query, positive_doc, str(1), 'train', i))
+        examples.append(self._create_example(query, negative_doc, str(0), 'train', i + 0.5))
     return examples
 
   def get_dev_examples(self, data_dir):
