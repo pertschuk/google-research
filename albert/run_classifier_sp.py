@@ -372,12 +372,14 @@ class MSMarcoProcessor(DataProcessor):
 
     start_time = time.time()
 
+    train_dataset_path = './data/triples.train.small.tsv'
+
     print('Counting number of examples...')
-    num_lines = sum(1 for line in open(FLAGS.train_dataset_path, 'r'))
+    num_lines = sum(1 for line in open(train_dataset_path, 'r'))
     print('{} examples found.'.format(num_lines))
     examples = []
 
-    with open(FLAGS.train_dataset_path, 'r') as f:
+    with open(train_dataset_path, 'r') as f:
       for i, line in enumerate(f):
         if i % 1000 == 0:
           time_passed = int(time.time() - start_time)
